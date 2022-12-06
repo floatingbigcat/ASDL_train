@@ -1,0 +1,7 @@
+
+{'epochs': 40, 'lr': 0.0003, 'device': 'cuda', 'data_path': '/home/lfsm/sundatasets/CIFAR100', 'batch_size': 100, 'img_size': 224, 'model': 'resnet18', 'optimizer': 'sgd', 'dataset': 'CIFAR100', 'label_smoothing': 0.1, 'pretrained': True, 'warmup_epochs': 0, 'warmup_factor': 0.1, 'num_workers': 4, 'momentum': 0.9, 'weight_decay': 0.0001, 'cov_update_freq': 10, 'inv_update_freq': 100, 'ema_decay': -1, 'damping': 0.001, 'log_interval': 100, 'clip_grad_norm': 10, 'seed': 1}
+Files already downloaded and verified
+Train Epoch1 Iter0 Loss4.8176
+Train Epoch1 Iter100 Loss4.6259
+Train Epoch1 Iter200 Loss4.5918
+[34m[1mwandb[39m[22m: Ctrl + C detected. Stopping sweep.

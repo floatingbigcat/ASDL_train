@@ -1,0 +1,26 @@
+2022-12-06 10:57:34,941 INFO    Thread-2 (_run_job):4129491 [wandb_setup.py:_flush():68] Configure stats pid to 4129491
+2022-12-06 10:57:34,942 INFO    Thread-2 (_run_job):4129491 [wandb_setup.py:_flush():68] Loading settings from /home/lfsm/.config/wandb/settings
+2022-12-06 10:57:34,942 INFO    Thread-2 (_run_job):4129491 [wandb_setup.py:_flush():68] Loading settings from /home/lfsm/code/ASDL_train/scripts/vitb16/wandb/settings
+2022-12-06 10:57:34,942 INFO    Thread-2 (_run_job):4129491 [wandb_setup.py:_flush():68] Loading settings from environment variables: {'_require_service': 'True', 'project': 'vitb16_shampoo', 'entity': 'floatingsnake', 'root_dir': '/home/lfsm/code/ASDL_train/scripts/vitb16', 'sweep_id': 'g3cq1a65', 'run_id': 'zw54gro0', 'sweep_param_path': '/home/lfsm/code/ASDL_train/scripts/vitb16/wandb/sweep-g3cq1a65/config-zw54gro0.yaml'}
+2022-12-06 10:57:34,942 INFO    Thread-2 (_run_job):4129491 [wandb_setup.py:_flush():68] Inferring run settings from compute environment: {'program_relpath': 'train_model_with_asdl.py', 'program': '/home/lfsm/code/ASDL_train/train_model_with_asdl.py'}
+2022-12-06 10:57:34,942 INFO    Thread-2 (_run_job):4129491 [wandb_init.py:_log_setup():476] Logging user logs to /home/lfsm/code/ASDL_train/scripts/vitb16/wandb/run-20221206_105734-zw54gro0/logs/debug.log
+2022-12-06 10:57:34,942 INFO    Thread-2 (_run_job):4129491 [wandb_init.py:_log_setup():477] Logging internal logs to /home/lfsm/code/ASDL_train/scripts/vitb16/wandb/run-20221206_105734-zw54gro0/logs/debug-internal.log
+2022-12-06 10:57:34,942 INFO    Thread-2 (_run_job):4129491 [wandb_init.py:init():516] calling init triggers
+2022-12-06 10:57:34,942 INFO    Thread-2 (_run_job):4129491 [wandb_init.py:init():519] wandb.init called with sweep_config: {'epochs': 40, 'lr': 0.0003}
+config: {'device': 'cuda', 'data_path': '/home/lfsm/sundatasets/CIFAR100', 'batch_size': 100, 'img_size': 224, 'model': 'resnet18', 'optimizer': 'sgd', 'dataset': 'CIFAR100', 'label_smoothing': 0.1, 'epochs': 40, 'pretrained': True, 'lr': 0.001, 'warmup_epochs': 0, 'warmup_factor': 0.1, 'num_workers': 4, 'momentum': 0.9, 'weight_decay': 0.0001, 'cov_update_freq': 10, 'inv_update_freq': 100, 'ema_decay': -1, 'damping': 0.001, 'log_interval': 100, 'clip_grad_norm': 10, 'seed': 1}
+2022-12-06 10:57:34,942 INFO    Thread-2 (_run_job):4129491 [wandb_init.py:init():569] starting backend
+2022-12-06 10:57:34,942 INFO    Thread-2 (_run_job):4129491 [wandb_init.py:init():573] setting up manager
+2022-12-06 10:57:34,950 INFO    Thread-2 (_run_job):4129491 [backend.py:_multiprocessing_setup():102] multiprocessing start_methods=fork,spawn,forkserver, using: spawn
+2022-12-06 10:57:34,958 INFO    Thread-2 (_run_job):4129491 [wandb_init.py:init():580] backend started and connected
+2022-12-06 10:57:34,965 INFO    Thread-2 (_run_job):4129491 [wandb_run.py:_config_callback():1160] config_cb None None {'epochs': 40, 'lr': 0.0003}
+2022-12-06 10:57:34,966 INFO    Thread-2 (_run_job):4129491 [wandb_init.py:init():658] updated telemetry
+2022-12-06 10:57:34,969 INFO    Thread-2 (_run_job):4129491 [wandb_init.py:init():693] communicating run to backend with 60 second timeout
+2022-12-06 10:57:35,386 INFO    Thread-2 (_run_job):4129491 [wandb_run.py:_on_init():2000] communicating current version
+2022-12-06 10:57:35,432 INFO    Thread-2 (_run_job):4129491 [wandb_run.py:_on_init():2004] got version response 
+2022-12-06 10:57:35,432 INFO    Thread-2 (_run_job):4129491 [wandb_init.py:init():728] starting run threads in backend
+2022-12-06 10:57:39,046 INFO    Thread-2 (_run_job):4129491 [wandb_run.py:_console_start():1980] atexit reg
+2022-12-06 10:57:39,046 INFO    Thread-2 (_run_job):4129491 [wandb_run.py:_redirect():1838] redirect: SettingsConsole.WRAP_RAW
+2022-12-06 10:57:39,047 INFO    Thread-2 (_run_job):4129491 [wandb_run.py:_redirect():1903] Wrapping output streams.
+2022-12-06 10:57:39,047 INFO    Thread-2 (_run_job):4129491 [wandb_run.py:_redirect():1925] Redirects installed.
+2022-12-06 10:57:39,047 INFO    Thread-2 (_run_job):4129491 [wandb_init.py:init():765] run started, returning control to user process
+2022-12-06 10:58:09,848 WARNING MsgRouterThr:4129491 [router.py:message_loop():77] message_loop has been closed
