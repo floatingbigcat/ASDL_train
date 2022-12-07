@@ -4,10 +4,30 @@ sys.path.append('/home/lfsm/code/asdfghjkl')
 import torch
 import torch.nn as nn
 import asdfghjkl as asdl
+from torch.optim.lr_scheduler import LinearLR, SequentialLR, CosineAnnealingLR
 from asdfghjkl import FISHER_EMP,FISHER_MC
+import timm
 
+def getLrscheduler(args,optimizer):
+    if args.warmup_epochs > 0:
+        lr_scheduler = SequentialLR(optimizer, [
+            LinearLR(optimizer, args.warmup_factor, total_iters=args.warmup_epochs),
+            CosineAnnealingLR(optimizer, T_max=args.epochs - args.warmup_epochs)],
+            milestones=[args.warmup_epochs]
+        )
+    else:
+        lr_scheduler = CosineAnnealingLR(optimizer, T_max=args.epochs)
+    return lr_scheduler
+    
+def getModel(args,num_classes):
+    if args.model in ["vit_tiny_patch16_224", "vit_base_patch16_224"]:
+        # vit model needs img_size args for ensure input size
+        model = timm.create_model(args.model, pretrained=args.pretrained, img_size=args.img_size,num_classes = num_classes) ### Add num_classes!
+    else:
+        model = timm.create_model(args.model, pretrained=args.pretrained, num_classes = num_classes) ### Add num_classes!
+    return model.to(args.device)
 
-def chooseOptGM(model, args):
+def getOptGM(model, args):
     """
     choose optimizer and gradmaker according to args
     """
@@ -73,6 +93,9 @@ def chooseOptGM(model, args):
     else:
         grad_maker = asdl.GradientMaker(model)        
     return optimizer,grad_maker
+
+def getMetric(args):
+    return Metric(args.device)
 
 class Metric(object):
     """

@@ -3,7 +3,7 @@ import timm
 from torch import nn
 import torch.nn.functional as F
 from torch.optim.lr_scheduler import LinearLR, SequentialLR, CosineAnnealingLR
-from utils.dataset import CIFAR10
+from utils.dataset import CIFAR10,CIFAR100
 from utils.utils import chooseOptGM,Metric
 # import wandb
 
@@ -18,6 +18,7 @@ def parse_args():
     parser.add_argument('--batch-size', default=256, type=int)
     parser.add_argument("--model", default="vit_base_patch16_224", type=str, choices=["resnet18","vit_tiny_patch16_224", "vit_base_patch16_224"])
     parser.add_argument('--img-size', default=384, type=int)
+    parser.add_argument('--auto_aug', default=None, type=str,choices=['rand-m9-mstd0.5-inc1'])
     parser.add_argument("--optimizer", default="sgd", type=str, choices=["sgd", "rmsprop", "adamw", "kfac_mc", "kfac_emp","shampoo","psgd"])
     parser.add_argument("--dataset", default="CIFAR100", type=str, choices=['CIFAR10','CIFAR100'])
     parser.add_argument('--label-smoothing', default=0.1, type=float)
@@ -107,7 +108,7 @@ if __name__ == '__main__':
     torch.manual_seed(args.seed)
     # ========== Logger ==========
     config = vars(args).copy()
-    datasets = CIFAR10(args)
+    datasets = CIFAR100(args)
     criterion = nn.CrossEntropyLoss()
     num_classes=len(datasets.train_dataset.classes)
     # ========== MODEL ==========

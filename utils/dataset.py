@@ -55,7 +55,7 @@ class CIFAR10(Dataset):
         TrainCIFAR10Transforms = create_transform(
             args.img_size,
             is_training=True,
-            auto_augment='rand-m9-mstd0.5-inc1',
+            auto_augment=args.auto_aug,
             interpolation='bilinear',
             re_prob=0.0,
         )        
@@ -65,6 +65,20 @@ class CIFAR10(Dataset):
             interpolation='bilinear',
             crop_pct=1
         ) 
+
+        # no aug:
+        # transform_train = transforms.Compose([
+        # transforms.RandomCrop(32, padding=4),
+        # transforms.RandomHorizontalFlip(),
+        # transforms.ToTensor(),
+        # transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+        # ])
+    
+        # transform_test = transforms.Compose([
+        # transforms.ToTensor(),
+        # transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+        # ])
+    
         self.train_dataset = torchvision.datasets.CIFAR10(root=args.data_path, transform=TrainCIFAR10Transforms, download=True)
         self.val_dataset = torchvision.datasets.CIFAR10(root=args.data_path, train=False, transform=ValCIFAR10Transforms)        
         self.test_dataset = torchvision.datasets.CIFAR10(root=args.data_path, train=False, transform=ValCIFAR10Transforms)        
@@ -75,7 +89,7 @@ class CIFAR100(Dataset):
         TrainCIFAR100Transforms = create_transform(
             args.img_size,
             is_training=True,
-            auto_augment='rand-m9-mstd0.5-inc1',
+            auto_augment=args.auto_aug,
             interpolation='bilinear',
             re_prob=0.0,
         )        
@@ -89,3 +103,10 @@ class CIFAR100(Dataset):
         self.val_dataset = torchvision.datasets.CIFAR100(root=args.data_path, train=False, transform=ValCIFAR100Transforms)        
         self.test_dataset = torchvision.datasets.CIFAR100(root=args.data_path, train=False, transform=ValCIFAR100Transforms)        
         super().__init__(args)
+        
+def getDataset(args):
+    if args.dataset == 'CIFAR10':
+        dataset = CIFAR10(args)
+    else:
+        dataset = CIFAR100(args)
+    return dataset

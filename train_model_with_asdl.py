@@ -2,22 +2,22 @@ import torch
 import timm
 from torch import nn
 import torch.nn.functional as F
-from torch.optim.lr_scheduler import LinearLR, SequentialLR, CosineAnnealingLR
-from utils.dataset import CIFAR10,CIFAR100
-from utils.utils import chooseOptGM,Metric
+from utils.dataset import getDataset
+import utils.utils as utils
 import wandb
 
 def parse_args():
     import argparse
     parser = argparse.ArgumentParser(description='ASDL')
-    parser.add_argument('--device', default='cuda', type=str)
     parser.add_argument('--data-path',
-                        default="/home/lfsm/sundatasets/CIFAR100",
+                        default="/home/lfsm/sundataset/CIFAR100",
                         type=str)
-    parser.add_argument('--batch-size', default=256, type=int)
-    parser.add_argument('--img-size', default=384, type=int)
-    parser.add_argument("--model", default="resnet18", type=str, choices=["resnet18","vit_tiny_patch16_224", "vit_base_patch16_224"])
-    parser.add_argument("--optimizer", default="sgd", type=str, choices=["sgd", "rmsprop", "adamw", "kfac_mc", "kfac_emp","shampoo","psgd"])
+    parser.add_argument('--batch-size', default=512, type=int)
+    parser.add_argument('--device', default='cuda', type=str)
+    parser.add_argument('--auto_aug', default='rand-m9-mstd0.5-inc1', type=str,choices=['rand-m9-mstd0.5-inc1'])
+    parser.add_argument('--img-size', default=224, type=int)
+    parser.add_argument("--model", default="vit_tiny_patch16_224", type=str, choices=["resnet18","vit_tiny_patch16_224", "vit_base_patch16_224_in21k"])
+    parser.add_argument("--optimizer", default="sgd", type=str, choices=["sgd", "rmsprop", "adamw","kbfgs", "kfac_mc", "kfac_emp","shampoo","psgd"])
     parser.add_argument("--dataset", default="CIFAR100", type=str, choices=['CIFAR10','CIFAR100'])
     parser.add_argument('--label-smoothing', default=0.1, type=float)
     parser.add_argument('--epochs', type=int, default=40)
@@ -39,11 +39,11 @@ def parse_args():
                     help='random seed (default: 1)')
     return parser.parse_args()
 
-def train(epoch, datasets, model, optimizer, grad_maker, args):
+def train(epoch, dataset, model, optimizer, grad_maker, args):
     model.train()
-    metric = Metric(args.device)
-    num_steps_per_epoch = len(datasets.train_loader)
-    for i, (inputs, targets) in enumerate(datasets.train_loader):
+    metric = utils.getMetric(args)
+    num_steps_per_epoch = len(dataset.train_loader)
+    for i, (inputs, targets) in enumerate(dataset.train_loader):
         # prepare
         if args.optimizer == 'kbfgs' and inputs.shape[0] != args.batch_size:
             continue # For BUG of kbfgs
@@ -67,12 +67,12 @@ def train(epoch, datasets, model, optimizer, grad_maker, args):
             wandb.log(metrics)            
             print(f'Train Epoch{epoch} Iter{(epoch-1)*num_steps_per_epoch+i} Loss{loss:.4f}')
 
-def val(epoch, datasets, model, criterion, args):
+def val(epoch, dataset, model, criterion, args):
     model.eval()
-    metric = Metric(args.device)
-    num_steps_per_epoch = len(datasets.val_loader)
+    metric = utils.Metric(args.device)
+    num_steps_per_epoch = len(dataset.val_loader)
     with torch.no_grad():
-        for i, (inputs, targets) in enumerate(datasets.val_loader):
+        for i, (inputs, targets) in enumerate(dataset.val_loader):
             inputs,targets = inputs.to(args.device),targets.to(args.device)
             outputs = model(inputs)
             loss = criterion(outputs, targets)
@@ -84,12 +84,12 @@ def val(epoch, datasets, model, criterion, args):
     wandb.log(metrics)    
     print(f'Epoch {epoch} Val/loss {metric.loss:.4f} Val/Acc {metric.accuracy:.4f}')
 
-def test(epoch, datasets, model, criterion, args):
+def test(epoch, dataset, model, criterion, args):
     model.eval()
-    metric = Metric(args.device)
-    num_steps_per_epoch = len(datasets.test_loader)
+    metric = utils.getMetric(args)
+    num_steps_per_epoch = len(dataset.test_loader)
     with torch.no_grad():
-        for i, (inputs, targets) in enumerate(datasets.test_loader):
+        for i, (inputs, targets) in enumerate(dataset.test_loader):
             inputs,targets = inputs.to(args.device),targets.to(args.device)
             outputs = model(inputs)
             loss = criterion(outputs, targets)
@@ -102,45 +102,32 @@ def test(epoch, datasets, model, criterion, args):
     print(f'Epoch {epoch} test/loss {metric.loss:.4f} test/Acc {metric.accuracy:.4f}')
 
 def train_pipeline():
-    # ========== Logger ==========
+    # ========== Setting ==========
+    # get config and init wandb
     config = vars(parse_args()).copy()
     wandb.init(config=config)
     args = wandb.config
     print(args)
+    # ensure compute speed
+    if torch.cuda.is_available():
+        torch.backends.cuda.matmul.allow_tf32 = True
+        ### enable TensorFloat-32 tensor cores to be used in matrix multiplications
+        torch.backends.cudnn.benchmark = True
+        ### causes cuDNN to benchmark multiple convolution algorithms and select the fastest.    
+    # enable distributed training    
     torch.manual_seed(args.seed)
-    # ========== DATA ==========
-    # datasets = IMAGENET(args)
-    if args.dataset == 'CIFAR10':
-        datasets = CIFAR10(args)
-    else:
-        datasets = CIFAR100(args)
+    dataset = getDataset(args)
     criterion = nn.CrossEntropyLoss()
-    num_classes=len(datasets.train_dataset.classes)
-    # ========== MODEL ==========
-    if args.model in ["vit_tiny_patch16_224", "vit_base_patch16_224"]:
-        # vit model needs img_size args for ensure input size
-        model = timm.create_model(args.model, pretrained=args.pretrained, img_size=args.img_size,num_classes = num_classes) ### Add num_classes!
-    else:
-        model = timm.create_model(args.model, pretrained=args.pretrained, num_classes = num_classes) ### Add num_classes!
-    model.to(args.device)
-    # ========== OPTIMIZER ==========
-    optimizer,grad_maker = chooseOptGM(model,args)
-    # ========== LEARNING RATE SCHEDULER ==========
-    if args.warmup_epochs > 0:
-        lr_scheduler = SequentialLR(optimizer, [
-            LinearLR(optimizer, args.warmup_factor, total_iters=args.warmup_epochs),
-            CosineAnnealingLR(optimizer, T_max=args.epochs - args.warmup_epochs)],
-            milestones=[args.warmup_epochs]
-        )
-    else:
-        lr_scheduler = CosineAnnealingLR(optimizer, T_max=args.epochs)
+    num_classes=len(dataset.train_dataset.classes)
+    model = utils.getModel(args,num_classes)
+    optimizer,grad_maker = utils.getOptGM(model,args)
+    lr_scheduler = utils.getLrscheduler(args,optimizer)
     # ========== TRAINING ==========
-    # training 
     for epoch in range(1,args.epochs+1):
-        train(epoch, datasets, model, optimizer, grad_maker, args)
-        ### as CIFAR10 don't have val datasets, so only test is used
-        # val(epoch, datasets, model, criterion, args)
-        test(epoch, datasets, model, criterion, args)
+        train(epoch, dataset, model, optimizer, grad_maker, args)
+        ### as CIFAR10 don't have val dataset, so only test is used
+        # val(epoch, dataset, model, criterion, args)
+        test(epoch, dataset, model, criterion, args)
         lr_scheduler.step()
     wandb.finish()
 
@@ -152,18 +139,20 @@ def hyper_search():
         'metric': {'goal': 'maximize', 'name': 'val_acc'},
         'parameters': 
         {
-            'lr':{
-              'values':[3e-4]  
+            'optimizer':{
+                'values':['rmsprop']
             },
-            'epochs':{
-                'values':[40]
+            'lr':{
+              'values':[1e-4,3e-4,1e-3,3e-3,1e-2,3e-2,1e-1,3e-1,1]  
             }
         }
     }
     print(sweep_config)
-    sweep_id = wandb.sweep(sweep_config, project="vitb16_shampoo")
+    sweep_id = wandb.sweep(sweep_config, project="vit_tiny")
+    # sweep_id = wandb.sweep(sweep_config)
     # Start sweep job.
     wandb.agent(sweep_id, function=train_pipeline)
 
 if __name__ == "__main__":
-    hyper_search()
+    # hyper_search()
+    train_pipeline()

@@ -8,9 +8,8 @@
 source activate
 conda deactivate
 conda activate pytorch
-
-python /home/lfsm/code/ASDL_train/train_model_with_asdl.py  --model resnet18 \
+python /home/lfsm/code/ASDL_train/train_model_with_asdl.py  --model vit_base_patch16_224_in21k \
         --dataset CIFAR100 \
         --batch-size 100 \
         --img-size 224 \
-        --optimizer sgd \
+        --optimizer sgd
