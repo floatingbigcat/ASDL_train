@@ -1,5 +1,4 @@
 import torch
-import timm
 from torch import nn
 import torch.nn.functional as F
 from utils.dataset import getDataset
@@ -17,7 +16,7 @@ def parse_args():
     parser.add_argument('--auto_aug', default='rand-m9-mstd0.5-inc1', type=str,choices=['rand-m9-mstd0.5-inc1'])
     parser.add_argument('--img-size', default=224, type=int)
     parser.add_argument("--model", default="vit_tiny_patch16_224", type=str, choices=["resnet18","vit_tiny_patch16_224", "vit_base_patch16_224_in21k"])
-    parser.add_argument("--optimizer", default="sgd", type=str, choices=["sgd", "rmsprop", "adamw","kbfgs", "kfac_mc", "kfac_emp","shampoo","psgd"])
+    parser.add_argument("--optimizer", default="sgd", type=str, choices=["sgd", "rmsprop", "adamw","kfac_mc","kfac_emp","shampoo","psgd","kbfgs"])
     parser.add_argument("--dataset", default="CIFAR100", type=str, choices=['CIFAR10','CIFAR100'])
     parser.add_argument('--label-smoothing', default=0.1, type=float)
     parser.add_argument('--epochs', type=int, default=40)
@@ -44,9 +43,6 @@ def train(epoch, dataset, model, optimizer, grad_maker, args):
     metric = utils.getMetric(args)
     num_steps_per_epoch = len(dataset.train_loader)
     for i, (inputs, targets) in enumerate(dataset.train_loader):
-        # prepare
-        if args.optimizer == 'kbfgs' and inputs.shape[0] != args.batch_size:
-            continue # For BUG of kbfgs
         inputs,targets = inputs.to(args.device),targets.to(args.device)
         optimizer.zero_grad()
         # grad_maker 
@@ -65,11 +61,11 @@ def train(epoch, dataset, model, optimizer, grad_maker, args):
                        "train/epoch": epoch, 
                        "train/lr": optimizer.param_groups[0]['lr']}
             wandb.log(metrics)            
-            print(f'Train Epoch{epoch} Iter{(epoch-1)*num_steps_per_epoch+i} Loss{loss:.4f}')
+            print(f'Train Epoch{epoch} Iter{(epoch-1)*num_steps_per_epoch+i} Train Loss{loss:.4f}')
 
 def val(epoch, dataset, model, criterion, args):
     model.eval()
-    metric = utils.Metric(args.device)
+    metric = utils.Metric(args)
     num_steps_per_epoch = len(dataset.val_loader)
     with torch.no_grad():
         for i, (inputs, targets) in enumerate(dataset.val_loader):
@@ -114,7 +110,6 @@ def train_pipeline():
         ### enable TensorFloat-32 tensor cores to be used in matrix multiplications
         torch.backends.cudnn.benchmark = True
         ### causes cuDNN to benchmark multiple convolution algorithms and select the fastest.    
-    # enable distributed training    
     torch.manual_seed(args.seed)
     dataset = getDataset(args)
     criterion = nn.CrossEntropyLoss()
@@ -125,14 +120,14 @@ def train_pipeline():
     # ========== TRAINING ==========
     for epoch in range(1,args.epochs+1):
         train(epoch, dataset, model, optimizer, grad_maker, args)
-        ### as CIFAR10 don't have val dataset, so only test is used
+        ### as CIFAR10 from torchvision.datasets don't have val dataset, only test is used
         # val(epoch, dataset, model, criterion, args)
         test(epoch, dataset, model, criterion, args)
         lr_scheduler.step()
     wandb.finish()
 
 def hyper_search():
-    # Define sweep config
+    # Wandb for grid search
     sweep_config = {
         'method': 'grid',
         'name': 'sweep',
@@ -140,19 +135,21 @@ def hyper_search():
         'parameters': 
         {
             'optimizer':{
-                'values':['rmsprop']
+                'values':["sgd", "rmsprop", "adamw", "kfac_mc", "kfac_emp","shampoo","psgd"]
             },
             'lr':{
-              'values':[1e-4,3e-4,1e-3,3e-3,1e-2,3e-2,1e-1,3e-1,1]  
+                'values':[1e-4, 3e-4, 1e-3, 3e-3, 1e-2, 3e-2, 1e-1, 3e-1]  
+            },
+            'batch_size':{
+                'values':[32, 64, 128, 256, 512]
             }
         }
     }
     print(sweep_config)
-    sweep_id = wandb.sweep(sweep_config, project="vit_tiny")
-    # sweep_id = wandb.sweep(sweep_config)
+    sweep_id = wandb.sweep(sweep_config, project="vit_with_asdl")
     # Start sweep job.
     wandb.agent(sweep_id, function=train_pipeline)
 
 if __name__ == "__main__":
-    # hyper_search()
-    train_pipeline()
+    hyper_search()
+    # train_pipeline()

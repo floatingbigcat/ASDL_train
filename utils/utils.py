@@ -1,11 +1,10 @@
 import sys
-sys.path.append('/home/lfsm/code/asdfghjkl')
-
+sys.path.append('/home/lfsm/code/asdl')
 import torch
 import torch.nn as nn
-import asdfghjkl as asdl
+import asdl
 from torch.optim.lr_scheduler import LinearLR, SequentialLR, CosineAnnealingLR
-from asdfghjkl import FISHER_EMP,FISHER_MC
+from asdl import FISHER_EMP,FISHER_MC
 import timm
 
 def getLrscheduler(args,optimizer):
@@ -20,7 +19,7 @@ def getLrscheduler(args,optimizer):
     return lr_scheduler
     
 def getModel(args,num_classes):
-    if args.model in ["vit_tiny_patch16_224", "vit_base_patch16_224"]:
+    if args.model in ["vit_tiny_patch16_224", "vit_base_patch16_224_in21k"]:
         # vit model needs img_size args for ensure input size
         model = timm.create_model(args.model, pretrained=args.pretrained, img_size=args.img_size,num_classes = num_classes) ### Add num_classes!
     else:
@@ -45,75 +44,62 @@ def getOptGM(model, args):
             lr=args.lr,
             momentum=args.momentum,
             weight_decay=args.weight_decay
-        )
-    if opt_name == "kfac_mc":
-        config = asdl.NaturalGradientConfig(data_size=args.batch_size,
-                                            fisher_type=FISHER_MC,
-                                            damping=args.damping,
-                                            curvature_upd_interval=args.cov_update_freq,
-                                            preconditioner_upd_interval=args.inv_update_freq,
-                                            ignore_modules=[nn.BatchNorm1d, nn.BatchNorm2d, nn.LayerNorm],
-                                            ema_decay=args.ema_decay)
-        grad_maker = asdl.KfacGradientMaker(model, config, swift=False)
-    elif opt_name == "kfac_emp":
-        config = asdl.NaturalGradientConfig(data_size=args.batch_size,
-                                            fisher_type=FISHER_EMP,
-                                            damping=args.damping,
-                                            curvature_upd_interval=args.cov_update_freq,
-                                            preconditioner_upd_interval=args.inv_update_freq,
-                                            ignore_modules=[nn.BatchNorm1d, nn.BatchNorm2d, nn.LayerNorm],
-                                            ema_decay=args.ema_decay)
-        grad_maker = asdl.KfacGradientMaker(model, config, swift=False)
-    elif opt_name == "shampoo":
-        config = asdl.ShampooGradientConfig(damping=args.damping,
-                                        curvature_upd_interval=args.cov_update_freq,
-                                        preconditioner_upd_interval=args.inv_update_freq)
-        grad_maker = asdl.ShampooGradientMaker(model, config)
-    elif opt_name == "psgd":
-        config = asdl.PsgdGradientConfig(curvature_upd_interval=args.cov_update_freq,
-                                        # ignore_modules=[nn.BatchNorm1d, nn.BatchNorm2d, nn.LayerNorm],
-                                        preconditioner_upd_interval=args.inv_update_freq)
+        ) 
+    if opt_name == "psgd":
+        config = asdl.PreconditioningConfig(curvature_upd_interval=args.cov_update_freq,
+                                            preconditioner_upd_interval=args.inv_update_freq)
         grad_maker = asdl.KronPsgdGradientMaker(model,config)
-    elif opt_name == "smw_ngd":
-        config = asdl.SmwEmpNaturalGradientConfig(data_size=args.batch_size,
-                                                  ignore_modules=[nn.BatchNorm1d, nn.BatchNorm2d, nn.LayerNorm],
-                                                  damping=args.damping)
-        grad_maker = asdl.SmwEmpNaturalGradientMaker(model, config)
+    elif opt_name == "shampoo":
+        config = asdl.PreconditioningConfig(curvature_upd_interval=args.cov_update_freq,
+                                            preconditioner_upd_interval=args.inv_update_freq)     
+        grad_maker = asdl.ShampooGradientMaker(model,config)
+    elif opt_name == "kfac_emp":
+        config = asdl.PreconditioningConfig(data_size=args.batch_size,
+                                            damping=args.damping,
+                                            curvature_upd_interval=args.cov_update_freq,
+                                            preconditioner_upd_interval=args.inv_update_freq,
+                                            ignore_modules=[nn.BatchNorm1d, nn.BatchNorm2d, nn.LayerNorm],
+                                            ema_decay=args.ema_decay)
+        grad_maker = asdl.KfacGradientMaker(model, config,fisher_type=FISHER_EMP)
+    elif opt_name == "kfac_mc":
+        config = asdl.PreconditioningConfig(data_size=args.batch_size,
+                                            damping=args.damping,
+                                            curvature_upd_interval=args.cov_update_freq,
+                                            preconditioner_upd_interval=args.inv_update_freq,
+                                            ignore_modules=[nn.BatchNorm1d, nn.BatchNorm2d, nn.LayerNorm],
+                                            ema_decay=args.ema_decay)
+        grad_maker = asdl.KfacGradientMaker(model, config, fisher_type=FISHER_MC) 
     elif opt_name == "kbfgs":
-        config = asdl.KronBfgsGradientConfig(
-                                             data_size=args.batch_size,
+        config = asdl.PreconditioningConfig( data_size=args.batch_size,
                                              ignore_modules=[nn.BatchNorm1d, nn.BatchNorm2d, nn.LayerNorm],
-                                            damping=args.damping)
+                                             damping=args.damping,
+                                             curvature_upd_interval=args.cov_update_freq,
+                                             preconditioner_upd_interval=args.inv_update_freq)
         grad_maker = asdl.KronBfgsGradientMaker(model, config)
-    elif opt_name == "seng":
-        ### LayerNorm not support
-        config = asdl.SengGradientConfig(data_size=args.batch_size,
-                                         damping=args.damping)
-        grad_maker = asdl.SengGradientMaker(model, config)
     else:
-        grad_maker = asdl.GradientMaker(model)        
-    return optimizer,grad_maker
-
+        grad_maker = asdl.GradientMaker(model)    
+    return optimizer, grad_maker
+ 
 def getMetric(args):
-    return Metric(args.device)
+    return Metric(args)
 
 class Metric(object):
     """
     metric for classification
     """
-    def __init__(self, device):
-        self._n = torch.tensor([0.0]).to(device)
-        self._losses = torch.tensor([0.0]).to(device)
-        self._corrects = torch.tensor([0.0]).to(device)
+    def __init__(self, args):
+        self._n = torch.tensor([0.0]).to(args.device)
+        self._losses = torch.tensor([0.0]).to(args.device)
+        self._corrects = torch.tensor([0.0]).to(args.device)
 
-    def update(self, n, loss, outputs, targets):
+    def update(self, n, loss, output, target):
         with torch.inference_mode():
             self._n += n
             self._losses += loss * n 
-            _, preds = torch.max(outputs, dim=1)
-            if targets.dim() != 1: # use mix up
-                _, targets = torch.max(targets, dim=1)
-            self._corrects += torch.sum(preds == targets)
+            _, preds = torch.max(output, dim=1)
+            if target.dim() != 1: # use mix up
+                _, target = torch.max(target, dim=1)
+            self._corrects += torch.sum(preds == target)
     @property
     def loss(self):
         return (self._losses / self._n).item()
