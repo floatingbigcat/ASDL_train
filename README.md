@@ -1,5 +1,8 @@
 # ASDL_train
-Finetune models(vit-b16,vit-tiny from timm) on CIFAR10/100 with asdl/dev-grad-maker.
+Train models with asdl/dev-grad-maker.
+
+- Models： supported from timm. vit-b16, vit-tiny.
+- Dataset: CIFAR10, CIFAR100
 
 TIMM:
 https://timm.fast.ai/
