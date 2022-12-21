@@ -4,10 +4,12 @@ Train models with asdl/dev-grad-maker.
 - Models: supported from timm(model library). vit-b16, vit-tiny.
 - Dataset: CIFAR10, CIFAR100
 
-TIMM:
+TIMM:  
+
 https://timm.fast.ai/
 
-ASDL(Automatic Second-order Differentiation Library):
+ASDL(Automatic Second-order Differentiation Library):  
+
 https://github.com/kazukiosawa/asdl/tree/dev-grad-maker
 
 ## Usage
