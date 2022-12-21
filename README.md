@@ -9,3 +9,7 @@ https://timm.fast.ai/
 
 ASDL(Automatic Second-order Differentiation Library):
 https://github.com/kazukiosawa/asdl/tree/dev-grad-maker
+
+## usage
+  1. add path of asdl library in utils/utils.py/line2
+  2. change hyper search range in train_model_with_asdl.py
